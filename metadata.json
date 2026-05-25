@@ -1,0 +1,6 @@
+{
+  "name": "Tabungan Warga RT",
+  "description": "Aplikasi modern pengelolaan kas, iuran, donasi, dan tabungan warga RT berbasis digital dengan sistem multi-user (Super Admin, Admin, dan Warga) serta integrasi Google Apps Script (GAS) dan Google Spreadsheet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
