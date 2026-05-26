@@ -344,10 +344,17 @@ export class DatabaseService {
 
   static async fetchFromGas(url: string): Promise<AppState | null> {
     try {
-      // GAS Web Apps require redirection handling, fetch automatically handles redirects by default in browsers.
-      // We append ?action=get_all to GET
-      const targetUrl = `${url}?action=get_all`;
-      const response = await fetch(targetUrl);
+      // Menggunakan request POST dengan 'text/plain' untuk melewati validasi preflight CORS OPTIONS.
+      // Ini adalah best practice murni saat berkomunikasi dengan Google Apps Script.
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: JSON.stringify({
+          action: 'get_all'
+        })
+      });
       if (!response.ok) throw new Error(`HTTP status error: ${response.status}`);
       const resData = await response.json();
       if (resData && resData.success && resData.data) {
@@ -355,7 +362,20 @@ export class DatabaseService {
       }
       return null;
     } catch (e) {
-      console.error('Error fetching from GAS Web App:', e);
+      console.error('Error fetching from GAS Web App via POST:', e);
+      // Fallback ke GET jika pengurus masih men-deploy script versi lama
+      try {
+        const targetUrl = `${url}?action=get_all`;
+        const response = await fetch(targetUrl);
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData && resData.success && resData.data) {
+            return resData.data as AppState;
+          }
+        }
+      } catch (getErr) {
+        console.error('Error fallback GET also failed:', getErr);
+      }
       throw e;
     }
   }
@@ -364,23 +384,24 @@ export class DatabaseService {
     try {
       const response = await fetch(url, {
         method: 'POST',
-        mode: 'no-cors', // standard workaround for direct GAS POST requests from client side without complex CORS config
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain'
         },
         body: JSON.stringify({
           action: 'sync_all',
           payload: state
         })
       });
-      // with no-cors, the response is opaque, we won't get body data, but if it doesn't throw, it likely succeeded.
-      return true;
+      if (!response.ok) throw new Error(`HTTP status error: ${response.status}`);
+      const resData = await response.json();
+      return !!resData.success;
     } catch (e) {
-      console.error('Error syncing with GAS Web App:', e);
-      // fallback POST with normal CORS in case user deployed a CORS-friendly wrapper (or custom proxy)
+      console.error('Error syncing with GAS Web App via POST:', e);
+      // Fallback ke mode non-CORS jika ada kegagalan ekstrim pada redirect browser
       try {
-        const response = await fetch(url, {
+        await fetch(url, {
           method: 'POST',
+          mode: 'no-cors',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -389,9 +410,9 @@ export class DatabaseService {
             payload: state
           })
         });
-        const resData = await response.json();
-        return !!resData.success;
+        return true;
       } catch (innerError) {
+        console.error('All backup sync solutions failed:', innerError);
         throw innerError;
       }
     }
