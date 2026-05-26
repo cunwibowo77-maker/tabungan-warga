@@ -252,8 +252,10 @@ export function saveLocalData<T>(key: string, data: T): void {
 
 // Check if Apps Script is connected
 export function getGasUrl(): string {
-  return localStorage.getItem(STORAGE_KEYS.GAS_URL) || '';
+  // Patenkan URL GAS Anda di sini. Jangan lupa tanda kutipnya!
+  return "https://script.google.com/macros/s/AKfycb.../exec"; 
 }
+
 
 export function saveGasUrl(url: string): void {
   localStorage.setItem(STORAGE_KEYS.GAS_URL, url);
