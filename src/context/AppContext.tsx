@@ -92,11 +92,18 @@ const login = async (usernameOrNik: string, passwordInput: string): Promise<bool
       const inputPass = passwordInput.trim();
 
       // 1. Cek Super Admin & Admin (Dari tabel USERS)
+// 1. Cek Super Admin & Admin (Dari tabel USERS)
       const adminUser = state.users.find(
-        (u) => 
-          u.username.toLowerCase() === inputId && 
-          u.password === inputPass && 
-          (u.role === 'SUPER_ADMIN' || u.role === 'ADMIN')
+        (u) => {
+          // Amankan variabel role agar bisa membaca huruf besar, kecil, atau pakai garis bawah
+          const userRole = u.role ? u.role.toUpperCase() : '';
+          
+          return (
+            u.username.toLowerCase() === inputId && 
+            u.password === inputPass && 
+            (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'SUPER ADMIN')
+          );
+        }
       );
 
       if (adminUser) {
