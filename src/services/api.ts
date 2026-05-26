@@ -253,7 +253,7 @@ export function saveLocalData<T>(key: string, data: T): void {
 // Check if Apps Script is connected
 export function getGasUrl(): string {
   // Patenkan URL GAS Anda di sini. Jangan lupa tanda kutipnya!
-  return "https://script.google.com/macros/s/AKfycb.../exec"; 
+  return "https://script.google.com/macros/s/AKfycbzC47kzgDbj_Czzf2zeTL0sz-Zn0Ptfpn6mOTcIjeBZeeIzU9SAjB-KkToCOAF23zCr/exec"; 
 }
 
 
