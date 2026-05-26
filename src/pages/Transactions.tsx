@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Transaksi } from '../types';
+import { calculateCitizenBalance } from '../services/api';
 import { 
   Plus, 
   Search, 
@@ -55,10 +56,7 @@ export default function Transactions() {
 
   // Get active citizen's outstanding savings balance to make sure Penarikan is allowed
   const getCitizenBalance = (cId: string) => {
-    const pTrxs = transaksi.filter((t) => t.warga_id === cId);
-    const deposits = pTrxs.filter(t => t.tipe === 'Setoran').reduce((sum, item) => sum + item.jumlah, 0);
-    const withdraws = pTrxs.filter(t => t.tipe === 'Penarikan').reduce((sum, item) => sum + item.jumlah, 0);
-    return deposits - withdraws;
+    return calculateCitizenBalance(cId, transaksi);
   };
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
@@ -98,11 +96,11 @@ export default function Transactions() {
 
   // Filters application
   const filteredTrxs = transaksi.filter((t) => {
-    const matchesWarga = wargaIdFilter === 'All' || t.warga_id === wargaIdFilter;
+    const matchesWarga = wargaIdFilter === 'All' || String(t.warga_id).trim() === String(wargaIdFilter).trim();
     const matchesTipe = tipeFilter === 'All' || t.tipe === tipeFilter;
     
     // search text on descriptions, code, or citizen names
-    const citizen = warga.find((w) => w.id === t.warga_id);
+    const citizen = warga.find((w) => String(w.id).trim() === String(t.warga_id).trim());
     const citizenName = citizen ? citizen.nama : 'Umum';
     const matchesSearch = 
       t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -237,7 +235,7 @@ export default function Transactions() {
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                 {filteredTrxs.map((t) => {
-                  const citizen = warga.find((w) => w.id === t.warga_id);
+                  const citizen = warga.find((w) => String(w.id).trim() === String(t.warga_id).trim());
                   const isExpense = t.tipe === 'Penarikan';
                   return (
                     <tr key={t.id} className="hover:bg-slate-50/40 transition">
@@ -433,7 +431,7 @@ export default function Transactions() {
       {selectedInvoice && (
         <InvoicePrint
           transaksi={selectedInvoice}
-          warga={warga.find((w) => w.id === selectedInvoice.warga_id)}
+          warga={warga.find((w) => String(w.id).trim() === String(selectedInvoice.warga_id).trim())}
           onClose={() => setSelectedInvoice(null)}
         />
       )}

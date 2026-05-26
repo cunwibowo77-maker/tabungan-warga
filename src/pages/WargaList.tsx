@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Warga } from '../types';
+import { calculateCitizenBalance } from '../services/api';
 import { 
   Plus, 
   Search, 
@@ -254,10 +255,7 @@ export default function WargaList() {
                 {filteredWarga.map((w) => {
                   
                   // Calculate savings balance specifically to display right on list
-                  const pTrxs = transaksi.filter((t) => t.warga_id === w.id);
-                  const deposits = pTrxs.filter(t => t.tipe === 'Setoran').reduce((sum, item) => sum + item.jumlah, 0);
-                  const withdraws = pTrxs.filter(t => t.tipe === 'Penarikan').reduce((sum, item) => sum + item.jumlah, 0);
-                  const currentBalance = deposits - withdraws;
+                  const currentBalance = calculateCitizenBalance(w.id, transaksi);
 
                   return (
                     <tr key={w.id} className="hover:bg-slate-50/40 transition">
@@ -570,11 +568,11 @@ export default function WargaList() {
               <div className="border-t pt-4">
                 <h4 className="text-xs font-bold text-slate-600 uppercase tracking-widest font-mono mb-3">5 Transaksi Terakhir</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {transaksi.filter(t => t.warga_id === activeWarga.id).length === 0 ? (
+                  {transaksi.filter(t => String(t.warga_id).trim() === String(activeWarga.id).trim()).length === 0 ? (
                     <p className="text-xs text-slate-400 py-3 text-center">Belum ada riwayat transaksi</p>
                   ) : (
                     transaksi
-                      .filter(t => t.warga_id === activeWarga.id)
+                      .filter(t => String(t.warga_id).trim() === String(activeWarga.id).trim())
                       .slice(0, 5)
                       .map(t => (
                         <div key={t.id} className="flex justify-between items-start text-xs p-2.5 bg-slate-50 rounded-xl border border-slate-100 font-mono">

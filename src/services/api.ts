@@ -312,6 +312,129 @@ export function saveGasUrl(url: string): void {
   localStorage.setItem(STORAGE_KEYS.GAS_URL, url);
 }
 
+// Helper to implement abortable timeout fetch
+async function fetchWithTimeout(url: string, options: RequestInit & { timeout?: number } = {}): Promise<Response> {
+  const { timeout = 12000 } = options; 
+  const controller = new AbortController();
+  const id = setTimeout(() => {
+    console.warn(`[API Trace] Fetch request to ${url} timed out after ${timeout}ms. Aborting.`);
+    controller.abort();
+  }, timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+// Global robust Google Apps Script requester with retry & timeout wrappers
+export async function requestGasWithRetry(
+  url: string,
+  method: 'GET' | 'POST',
+  action: string,
+  payload: any = null,
+  retries: number = 3,
+  delayMs: number = 1000
+): Promise<any> {
+  if (!url || typeof url !== 'string' || !url.trim().startsWith('https://script.google.com/')) {
+    console.error('[API Trace] Invalid Google Apps Script URL:', url);
+    throw new Error('Endpoint URL Google Apps Script tidak valid. Harap periksa lembar pengaturan.');
+  }
+
+  const sanitizedUrl = url.trim();
+  let attempt = 0;
+
+  while (attempt < retries) {
+    attempt++;
+    console.log(`[API Trace] [Attempt ${attempt}/${retries}] Calling action "${action}" via ${method}`);
+
+    try {
+      let targetUrl = sanitizedUrl;
+      const finalOptions: RequestInit = {
+        method,
+        mode: 'cors',
+        credentials: 'omit', // Bypasses browser SameSite cookie policy and third-party restrictions
+      };
+
+      if (method === 'GET') {
+        const queryParams = new URLSearchParams();
+        queryParams.set('action', action);
+        if (payload) {
+          queryParams.set('payload', JSON.stringify(payload));
+        }
+        queryParams.set('_nocache', Date.now().toString()); // cache busting to secure fresh data
+
+        targetUrl = targetUrl.includes('?') ? `${targetUrl}&${queryParams.toString()}` : `${targetUrl}?${queryParams.toString()}`;
+      } else {
+        // Simple POST Content-Type request avoids CORS preflight OPTIONS pre-check on Chrome/Firefox
+        finalOptions.headers = {
+          'Content-Type': 'text/plain;charset=utf-8'
+        };
+        finalOptions.body = JSON.stringify({
+          action,
+          payload,
+          client_user: 'system'
+        });
+      }
+
+      const response = await fetchWithTimeout(targetUrl, { ...finalOptions, timeout: method === 'GET' ? 12000 : 18000 });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error Status: ${response.status}`);
+      }
+
+      const text = await response.text();
+      let resData;
+      try {
+        resData = JSON.parse(text);
+      } catch (jsonErr) {
+        console.error('[API Trace] Non-JSON payload received from Apps Script:', text);
+        throw new Error('Format response dari Google Apps Script tidak valid (Bukan JSON).');
+      }
+
+      if (resData && resData.success) {
+        console.log(`[API Trace] Action "${action}" completed successfully on attempt ${attempt}.`);
+        return resData.data;
+      } else {
+        const errorMsg = resData?.message || 'Apps Script returning success:false';
+        console.warn(`[API Trace] Apps Script returned failure on action "${action}":`, errorMsg);
+        throw new Error(errorMsg);
+      }
+
+    } catch (err: any) {
+      console.error(`[API Trace] Attempt ${attempt} failed:`, err.message || err);
+      if (attempt >= retries) {
+        throw err;
+      }
+      const waitTime = delayMs * attempt;
+      console.log(`[API Trace] Reconnecting in ${waitTime}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+  }
+}
+
+// Helper to compute digital balance for any citizen (Setoran - Penarikan)
+export function calculateCitizenBalance(citizenId: string, transactions: Transaksi[]): number {
+  if (!citizenId) return 0;
+  const idStr = String(citizenId).trim();
+  const personalTrxs = transactions.filter(t => String(t.warga_id).trim() === idStr);
+
+  const deposits = personalTrxs
+    .filter(t => t.tipe === 'Setoran')
+    .reduce((sum, item) => sum + (Number(item.jumlah) || 0), 0);
+
+  const withdraws = personalTrxs
+    .filter(t => t.tipe === 'Penarikan')
+    .reduce((sum, item) => sum + (Number(item.jumlah) || 0), 0);
+
+  return deposits - withdraws;
+}
+
 // Core DB operations that check for Google Sheets integration
 export class DatabaseService {
   
@@ -344,77 +467,34 @@ export class DatabaseService {
 
   static async fetchFromGas(url: string): Promise<AppState | null> {
     try {
-      // Menggunakan request POST dengan 'text/plain' untuk melewati validasi preflight CORS OPTIONS.
-      // Ini adalah best practice murni saat berkomunikasi dengan Google Apps Script.
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain'
-        },
-        body: JSON.stringify({
-          action: 'get_all'
-        })
-      });
-      if (!response.ok) throw new Error(`HTTP status error: ${response.status}`);
-      const resData = await response.json();
-      if (resData && resData.success && resData.data) {
-        return resData.data as AppState;
+      const data = await requestGasWithRetry(url, 'GET', 'get_all') as AppState;
+      if (data) {
+        // Coerce all IDs to string to prevent any auto-numeric mismatch issues
+        if (data.warga) {
+          data.warga = data.warga.map(w => ({ ...w, id: String(w.id).trim(), no_hp: String(w.no_hp).trim() }));
+        }
+        if (data.transaksi) {
+          data.transaksi = data.transaksi.map(t => ({ ...t, warga_id: String(t.warga_id).trim() }));
+        }
+        if (data.users) {
+          data.users = data.users.map(u => ({ ...u, username: String(u.username).trim() }));
+        }
+        return data;
       }
       return null;
     } catch (e) {
-      console.error('Error fetching from GAS Web App via POST:', e);
-      // Fallback ke GET jika pengurus masih men-deploy script versi lama
-      try {
-        const targetUrl = `${url}?action=get_all`;
-        const response = await fetch(targetUrl);
-        if (response.ok) {
-          const resData = await response.json();
-          if (resData && resData.success && resData.data) {
-            return resData.data as AppState;
-          }
-        }
-      } catch (getErr) {
-        console.error('Error fallback GET also failed:', getErr);
-      }
+      console.error('[API Trace] fetchFromGas failed:', e);
       throw e;
     }
   }
 
   static async syncToGas(url: string, state: AppState): Promise<boolean> {
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain'
-        },
-        body: JSON.stringify({
-          action: 'sync_all',
-          payload: state
-        })
-      });
-      if (!response.ok) throw new Error(`HTTP status error: ${response.status}`);
-      const resData = await response.json();
-      return !!resData.success;
+      await requestGasWithRetry(url, 'POST', 'sync_all', state);
+      return true;
     } catch (e) {
-      console.error('Error syncing with GAS Web App via POST:', e);
-      // Fallback ke mode non-CORS jika ada kegagalan ekstrim pada redirect browser
-      try {
-        await fetch(url, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'sync_all',
-            payload: state
-          })
-        });
-        return true;
-      } catch (innerError) {
-        console.error('All backup sync solutions failed:', innerError);
-        throw innerError;
-      }
+      console.error('[API Trace] syncToGas failed:', e);
+      return false;
     }
   }
 

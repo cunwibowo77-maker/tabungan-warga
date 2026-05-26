@@ -194,6 +194,31 @@ function doGet(e) {
     const ss = getSpreadsheet();
     setup(); // Auto recovery jika ada sheet yang terhapus secara tidak sengaja
     
+    // Check if there is an action parameter
+    let action = e && e.parameter && e.parameter.action;
+    if (action === "get_all") {
+      const fullData = {
+        users: getSheetData(ss, SHEETS.USERS),
+        warga: getSheetData(ss, SHEETS.WARGA),
+        transaksi: getSheetData(ss, SHEETS.TRANSAKSI),
+        target_kas: getSheetData(ss, SHEETS.TARGET_KAS),
+        pengumuman: getSheetData(ss, SHEETS.PENGUMUMAN),
+        log_aktivitas: getSheetData(ss, SHEETS.LOG_AKTIVITAS),
+        kategori: getSheetData(ss, SHEETS.KATEGORI),
+        
+        // Data master tambahan
+        tabungan: getSheetData(ss, SHEETS.TABUNGAN),
+        kas: getSheetData(ss, SHEETS.KAS),
+        iuran: getSheetData(ss, SHEETS.IURAN),
+        pinjaman: getSheetData(ss, SHEETS.PINJAMAN),
+        notifikasi: getSheetData(ss, SHEETS.NOTIFIKASI),
+        logs: getSheetData(ss, SHEETS.LOGS)
+      };
+      
+      writeLog(ss, "QUERY", "system", "SUCCESS", "Membaca snapshot database lengkap via doGet.");
+      return corsResponse(responseSuccess("Berhasil mendapatkan snapshot database real-time via doGet.", fullData));
+    }
+
     const quota = MailApp.getRemainingDailyQuota();
     const sheetsList = ss.getSheets().map(s => s.getName());
     
@@ -544,6 +569,12 @@ function getSheetData(ss, sheetName) {
       // Trim string untuk menghindari bug spasi kosong tidak kasat mata
       if (typeof val === "string") {
         val = val.trim();
+      }
+      
+      // Explicit string coercion for IDs, phone numbers, usernames, and passwords to prevent Google Sheets auto-numeric corruption or losing leading zeros
+      const stringFields = ["id", "warga_id", "user_id", "no_hp", "kategori_id", "username", "password"];
+      if (stringFields.indexOf(headers[c]) !== -1 && val !== null && val !== undefined && val !== "") {
+        val = val.toString().trim();
       }
       
       if (val !== undefined && val !== null && val !== "") {

@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Warga, Transaksi } from '../types';
 import { CreditCard, QrCode, Sparkles, Building2, Printer, Check } from 'lucide-react';
+import { calculateCitizenBalance } from '../services/api';
 
 interface SavingsCardProps {
   warga: Warga;
@@ -11,7 +12,7 @@ export default function SavingsCard({ warga, transaksi }: SavingsCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Calculate stats specifically for this citizen
-  const personalTrxs = transaksi.filter((t) => t.warga_id === warga.id);
+  const personalTrxs = transaksi.filter((t) => String(t.warga_id).trim() === String(warga.id).trim());
   
   const totalSetoran = personalTrxs
     .filter((t) => t.tipe === 'Setoran')
@@ -29,7 +30,7 @@ export default function SavingsCard({ warga, transaksi }: SavingsCardProps) {
     .filter((t) => t.tipe === 'Donasi')
     .reduce((sum, item) => sum + item.jumlah, 0);
 
-  const sisaTabungan = totalSetoran - totalPenarikan;
+  const sisaTabungan = calculateCitizenBalance(warga.id, transaksi);
 
   const handlePrintCard = () => {
     const printContent = cardRef.current?.innerHTML;

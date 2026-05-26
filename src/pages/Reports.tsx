@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { calculateCitizenBalance } from '../services/api';
 import { 
   FileText, 
   Printer, 
@@ -34,7 +35,7 @@ export default function Reports() {
 
   // Compile individual resident balances for "REKAP IURAN & TABUNGAN" table
   const residentReportRows = warga.map((w) => {
-    const pTrxs = transaksi.filter(t => t.warga_id === w.id);
+    const pTrxs = transaksi.filter(t => String(t.warga_id).trim() === String(w.id).trim());
     const pSetoran = pTrxs.filter(t => t.tipe === 'Setoran').reduce((sum, item) => sum + item.jumlah, 0);
     const pPenarikan = pTrxs.filter(t => t.tipe === 'Penarikan').reduce((sum, item) => sum + item.jumlah, 0);
     const pIuran = pTrxs.filter(t => t.tipe === 'Iuran').reduce((sum, item) => sum + item.jumlah, 0);
@@ -47,7 +48,7 @@ export default function Reports() {
       penarikan: pPenarikan,
       iuran: pIuran,
       donasi: pDonasi,
-      tabungan: pSetoran - pPenarikan
+      tabungan: calculateCitizenBalance(w.id, transaksi)
     };
   });
 

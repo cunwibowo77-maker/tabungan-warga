@@ -122,7 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // NIK can be usernameOrNik, or no_hp can be passwordOrPhone
       const resident = state.warga.find(
         (w) => 
-          (w.id === usernameOrNik || w.no_hp === usernameOrNik) &&
+          (String(w.id).trim() === String(usernameOrNik).trim() || String(w.no_hp).trim() === String(usernameOrNik).trim()) &&
           w.status === 'Aktif'
       );
 
@@ -227,6 +227,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const success = await DatabaseService.syncToGas(gasUrl, state);
       if (success) {
+        console.log('[Sync System] Full manual sync successful. Re-pulling fresh data...');
+        const freshState = await DatabaseService.fetchFromGas(gasUrl);
+        if (freshState) {
+          setState(freshState);
+          DatabaseService.saveLocalState(freshState);
+        }
         showToast('Seluruh data berhasil disinkronkan ke Spreadsheet!', 'success');
         setLoading(false);
         return true;
@@ -242,11 +248,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const autoSyncIfNeeded = async (updatedState: AppState) => {
     DatabaseService.saveLocalState(updatedState);
     if (gasUrl) {
+      setLoading(true);
       try {
-        await DatabaseService.syncToGas(gasUrl, updatedState);
-        console.log('Auto sync succeed');
+        console.log('[Sync System] Auto sync started...');
+        const success = await DatabaseService.syncToGas(gasUrl, updatedState);
+        if (success) {
+          console.log('[Sync System] Sync completed. Pulling down latest official database snapshot...');
+          const freshState = await DatabaseService.fetchFromGas(gasUrl);
+          if (freshState) {
+            setState(freshState);
+            DatabaseService.saveLocalState(freshState);
+            console.log('[Sync System] Real-time state updated on all modules.');
+          }
+        }
       } catch (e) {
-        console.warn('Auto sync failed, buffered locally', e);
+        console.warn('[Sync System] Auto sync failed, saved locally offline:', e);
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -355,7 +373,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let updatedTargetKas = [...state.target_kas];
     
     // Find matching citizens
-    const citizen = state.warga.find(w => w.id === t.warga_id);
+    const citizen = state.warga.find(w => String(w.id).trim() === String(t.warga_id).trim());
     const citizenName = citizen ? citizen.nama : 'Tidak Diketahui';
 
     const updatedState: AppState = {

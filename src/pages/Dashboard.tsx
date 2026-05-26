@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { calculateCitizenBalance } from '../services/api';
 import { 
   DollarSign, 
   Users, 
@@ -64,8 +65,8 @@ export default function Dashboard() {
   // If user is a Warga, we display a specialized Personal Dashboard containing their digital card, simple list, announcements
   const isWarga = user?.role === 'WARGA';
   const wargaNIK = user?.username;
-  const personalWarga = warga.find(w => w.id === wargaNIK);
-  const personalTrxs = transaksi.filter(t => t.warga_id === wargaNIK);
+  const personalWarga = warga.find(w => String(w.id).trim() === String(wargaNIK).trim());
+  const personalTrxs = transaksi.filter(t => String(t.warga_id).trim() === String(wargaNIK).trim());
 
   // Personal metrics
   const pSetoran = personalTrxs.filter(t => t.tipe === 'Setoran').reduce((sum, item) => sum + item.jumlah, 0);
@@ -73,7 +74,7 @@ export default function Dashboard() {
   const pIuran = personalTrxs.filter(t => t.tipe === 'Iuran' || t.tipe === 'Kas Sosial').reduce((sum, item) => sum + item.jumlah, 0);
   const pDonasi = personalTrxs.filter(t => t.tipe === 'Donasi').reduce((sum, item) => sum + item.jumlah, 0);
   
-  const personalSaldo = pSetoran - pPenarikan;
+  const personalSaldo = calculateCitizenBalance(personalWarga?.id || wargaNIK || '', transaksi);
   const personalTotalKontribusi = pIuran + pDonasi;
 
   const getKategoriColor = (kat: string) => {
@@ -498,7 +499,7 @@ export default function Dashboard() {
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {latestTransactions.map((t) => {
-                  const citizen = warga.find((w) => w.id === t.warga_id);
+                  const citizen = warga.find((w) => String(w.id).trim() === String(t.warga_id).trim());
                   return (
                     <tr key={t.id} className="hover:bg-slate-50/50 transition">
                       <td className="py-3 px-4 font-mono font-bold text-slate-700">{t.id}</td>
@@ -534,7 +535,7 @@ export default function Dashboard() {
       {selectedInvoiceTrx && (
         <InvoicePrint
           transaksi={selectedInvoiceTrx}
-          warga={warga.find((w) => w.id === selectedInvoiceTrx.warga_id)}
+          warga={warga.find((w) => String(w.id).trim() === String(selectedInvoiceTrx.warga_id).trim())}
           onClose={() => setSelectedInvoiceTrx(null)}
         />
       )}
