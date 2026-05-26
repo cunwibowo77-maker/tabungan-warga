@@ -85,24 +85,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (usernameOrNik: string, passwordOrPhone: string): Promise<boolean> => {
+const login = async (usernameOrNik: string, passwordInput: string): Promise<boolean> => {
     setLoading(true);
     try {
-      // 1. Check Super Admin & Admin users first
+      const inputId = usernameOrNik.trim().toLowerCase();
+      const inputPass = passwordInput.trim();
+
+      // 1. Cek Super Admin & Admin (Dari tabel USERS)
       const adminUser = state.users.find(
         (u) => 
-          u.username.toLowerCase() === usernameOrNik.toLowerCase() && 
-          u.password === passwordOrPhone && 
+          u.username.toLowerCase() === inputId && 
+          u.password === inputPass && 
           (u.role === 'SUPER_ADMIN' || u.role === 'ADMIN')
       );
 
       if (adminUser) {
         const loggedInUser = { ...adminUser };
-        delete loggedInUser.password; // strip password for safety
+        delete loggedInUser.password; // Amankan password
         setUser(loggedInUser);
         localStorage.setItem('tabungan_rt_session', JSON.stringify(loggedInUser));
         
-        // Add activity log
         const updated = DatabaseService.addLog(
           loggedInUser.username,
           `Login berhasil sebagai ${loggedInUser.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}`,
@@ -115,19 +117,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
-      // 2. Check Warga user (Using NIK (id) OR no_hp & username matching)
-      // NIK can be usernameOrNik, or no_hp can be passwordOrPhone
-      const resident = state.warga.find(
-        (w) => 
-          (w.id === usernameOrNik || w.no_hp === usernameOrNik || w.no_hp === passwordOrPhone) &&
-          w.status === 'Aktif'
-      );
+      // 2. Cek Warga Biasa (Dari tabel WARGA)
+      // Mencocokkan Username / NIK (id) / No HP, DAN WAJIB mencocokkan Password
+      const resident = state.warga.find((w: any) => {
+        const matchUsername = w.username?.toLowerCase() === inputId;
+        const matchNik = w.id === inputId || w.nik === inputId;
+        const matchPhone = w.no_hp === inputId;
+        const matchPassword = w.password === inputPass;
+
+        // Harus memenuhi salah satu identitas, DAN passwordnya harus benar
+        return (matchUsername || matchNik || matchPhone) && matchPassword;
+      });
 
       if (resident) {
+        if (resident.status === 'Nonaktif') {
+          showToast('Akun warga ini berstatus Nonaktif. Silakan hubungi RT.', 'error');
+          setLoading(false);
+          return false;
+        }
+
         const wargaUser: User = {
           id: `U-${resident.id}`,
           nama: resident.nama,
-          username: resident.id,
+          username: resident.username || resident.id,
           role: 'WARGA',
           no_hp: resident.no_hp,
           created_at: resident.created_at
@@ -135,10 +147,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser(wargaUser);
         localStorage.setItem('tabungan_rt_session', JSON.stringify(wargaUser));
         
-        // Add activity log
         const updated = DatabaseService.addLog(
           wargaUser.username,
-          `Login berhasil sebagai Warga (NIK: ${resident.id})`,
+          `Login berhasil sebagai Warga (${resident.nama})`,
           state
         );
         setState(updated);
@@ -148,17 +159,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
-      // Handle custom check if citizen is inactive
-      const inactiveResident = state.warga.find(
-        (w) => (w.id === usernameOrNik || w.no_hp === usernameOrNik) && w.status === 'Nonaktif'
-      );
-      if (inactiveResident) {
-        showToast('Akun warga ini berstatus Nonaktif. Silakan hubungi RT.', 'error');
-        setLoading(false);
-        return false;
-      }
-
-      showToast('Login gagal! Periksa kembali Username/NIK atau Password/No HP.', 'error');
+      showToast('Login gagal! Periksa kembali Username/NIK dan Password Anda.', 'error');
       setLoading(false);
       return false;
     } catch (e) {
