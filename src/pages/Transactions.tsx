@@ -34,12 +34,14 @@ export default function Transactions() {
   // New Transaction Form state
   const [wargaId, setWargaId] = useState('');
   const [tipe, setTipe] = useState<'Setoran' | 'Penarikan' | 'Iuran' | 'Donasi' | 'Kas Sosial'>('Setoran');
+  const [kategoriId, setKategoriId] = useState('');
   const [jumlah, setJumlah] = useState<number>(0);
   const [keterangan, setKeterangan] = useState('');
 
   const resetForm = () => {
     setWargaId('');
     setTipe('Setoran');
+    setKategoriId(state.kategori?.[0]?.id || '');
     setJumlah(0);
     setKeterangan('');
   };
@@ -78,6 +80,7 @@ export default function Transactions() {
     await addTransaction({
       warga_id: wargaId,
       tipe,
+      kategori_id: kategoriId || undefined,
       jumlah,
       keterangan: keterangan.trim()
     });
@@ -123,7 +126,14 @@ export default function Transactions() {
         </div>
 
         <button
-          onClick={() => { resetForm(); setShowAddForm(true); }}
+          onClick={() => {
+            resetForm();
+            if (state.kategori && state.kategori.length > 0) {
+              setKategoriId(state.kategori[0].id);
+              setTipe(state.kategori[0].tipe);
+            }
+            setShowAddForm(true);
+          }}
           className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-md shadow-emerald-600/10 cursor-pointer"
         >
           <PlusCircle className="h-4 w-4" /> Catat Transaksi Baru
@@ -245,14 +255,21 @@ export default function Transactions() {
 
                       {/* Tipe Flow */}
                       <td className="py-3.5 px-5">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-widest leading-none ${
-                          isExpense 
-                            ? 'bg-red-50 text-red-650 border-red-200' 
-                            : 'bg-emerald-50 text-emerald-800 border-emerald-100'
-                        }`}>
-                          {isExpense ? <ArrowDownRight className="h-3 w-3 text-red-500" /> : <ArrowUpRight className="h-3 w-3 text-emerald-500" />}
-                          {t.tipe}
-                        </span>
+                        <div className="space-y-1">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-widest leading-none ${
+                            isExpense 
+                              ? 'bg-red-50 text-red-650 border-red-200' 
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-100'
+                          }`}>
+                            {isExpense ? <ArrowDownRight className="h-3 w-3 text-red-500" /> : <ArrowUpRight className="h-3 w-3 text-emerald-500" />}
+                            {t.tipe}
+                          </span>
+                          {t.kategori_id && (
+                            <div className="text-[10px] text-slate-500 font-semibold truncate max-w-[150px]">
+                              🏷️ {state.kategori?.find(k => k.id === t.kategori_id)?.nama || 'Kategori Terhapus'}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Keterangan */}
@@ -334,31 +351,36 @@ export default function Transactions() {
                 </select>
               </div>
 
-              {/* Tipe option selection */}
+              {/* Pilihan Kategori Transaksi Dropdown */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5 font-mono">Kategori Transaksi</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'Setoran', text: 'Setoran (Tabungan)' },
-                    { id: 'Penarikan', text: 'Penarikan (Tabungan)' },
-                    { id: 'Iuran', text: 'Iuran Bulanan' },
-                    { id: 'Donasi', text: 'Donasi Sukarela' },
-                    { id: 'Kas Sosial', text: 'Kas Sosial (Duka)' },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setTipe(item.id as any)}
-                      className={`py-2 px-3 hover:border-emerald-500/50 border rounded-xl text-[10.5px] font-bold text-left transition duration-150 cursor-pointer ${
-                        tipe === item.id 
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-800' 
-                          : 'bg-white border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {item.text}
-                    </button>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5 font-mono">Pilihan Kategori Transaksi</label>
+                <select
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition"
+                  value={kategoriId}
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    setKategoriId(selectedId);
+                    const kat = state.kategori?.find(k => k.id === selectedId);
+                    if (kat) {
+                      setTipe(kat.tipe);
+                    }
+                  }}
+                >
+                  <option value="">-- Pilih Kategori Transaksi --</option>
+                  {(state.kategori || []).map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.nama} ({k.tipe})
+                    </option>
                   ))}
-                </div>
+                </select>
+                {kategoriId && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold font-mono">
+                    <span>Terdeteksi Tipe Induk Kas:</span>
+                    <span className="bg-slate-100 text-slate-700 py-0.5 px-1.5 rounded-md text-[9px] font-bold">
+                      {tipe}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Nominal amount input */}

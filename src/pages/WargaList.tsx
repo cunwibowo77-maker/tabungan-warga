@@ -40,6 +40,7 @@ export default function WargaList() {
   const [alamat, setAlamat] = useState('');
   const [noHp, setNoHp] = useState('');
   const [status, setStatus] = useState<'Aktif' | 'Nonaktif'>('Aktif');
+  const [password, setPassword] = useState('');
 
   // Active items for edit/detail
   const [activeWarga, setActiveWarga] = useState<Warga | null>(null);
@@ -50,6 +51,7 @@ export default function WargaList() {
     setAlamat('');
     setNoHp('');
     setStatus('Aktif');
+    setPassword('');
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -74,7 +76,8 @@ export default function WargaList() {
       nama: nama.trim(),
       alamat: alamat.trim(),
       no_hp: noHp.trim(),
-      status
+      status,
+      password: password.trim() || undefined
     });
 
     setShowAddModal(false);
@@ -88,6 +91,7 @@ export default function WargaList() {
     setAlamat(w.alamat);
     setNoHp(w.no_hp);
     setStatus(w.status);
+    setPassword(w.password || '');
     setShowEditModal(true);
   };
 
@@ -105,6 +109,7 @@ export default function WargaList() {
       alamat: alamat.trim(),
       no_hp: noHp.trim(),
       status,
+      password: password.trim() || undefined,
       created_at: activeWarga.created_at
     });
 
@@ -239,6 +244,7 @@ export default function WargaList() {
                   <th className="py-3 px-5">Info Warga / NIK</th>
                   <th className="py-3 px-5">Alamat KTP</th>
                   <th className="py-3 px-5">Nomor Telepon</th>
+                  <th className="py-3 px-5">Kata Sandi</th>
                   <th className="py-3 px-5">Keanggotaan</th>
                   <th className="py-3 px-5">Terdaftar</th>
                   <th className="py-3 px-5 text-center">Tindakan</th>
@@ -282,6 +288,13 @@ export default function WargaList() {
                         <span className="flex items-center gap-1 text-[11px]">
                           <Phone className="h-3 w-3 text-slate-400 shrink-0" />
                           {w.no_hp}
+                        </span>
+                      </td>
+
+                      {/* Password Column */}
+                      <td className="py-4 px-5 text-slate-600 font-mono">
+                        <span className="bg-slate-100 border border-slate-200 text-slate-700 text-[10.5px] px-2.5 py-1 rounded-lg">
+                          {w.password || 'HP Warga'}
                         </span>
                       </td>
 
@@ -402,6 +415,17 @@ export default function WargaList() {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5 font-mono">Kata Sandi Akun</label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition"
+                  placeholder="Kosongkan untuk default (Nomor WA)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5 font-mono">Status Keanggotaan</label>
                 <select
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition"
@@ -482,6 +506,17 @@ export default function WargaList() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-semibold text-slate-900 focus:outline-none"
                   value={noHp}
                   onChange={(e) => setNoHp(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-1.5 font-mono">Kata Sandi Akun</label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-semibold text-slate-900 focus:outline-none"
+                  placeholder="Masukkan kata sandi baru"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
 

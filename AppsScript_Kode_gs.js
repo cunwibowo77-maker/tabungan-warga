@@ -1,30 +1,4 @@
 /**
- * PERINGATAN / WARNING:
- * JANGAN SALIN SELURUH FILE INI KE GOOGLE APPS SCRIPT (KODE.GS)!
- * File ini adalah file frontend React/Vite (.ts) yang digunakan oleh aplikasi untuk menampilkan template.
- * Jika Anda menyalin seluruh file ini, Anda akan menemui error: "SyntaxError: Unexpected token 'export'".
- * 
- * CARA MENDAPATKAN KODE UNTUK GOOGLE APPS SCRIPT (KODE.GS) YANG BENAR:
- * ----------------------------------------------------------------------
- * Pilihlah salah satu cara berikut:
- * 
- * CARA A (Sangat Direkomendasikan & Paling Mudah):
- *   1. Buka aplikasi Tabungan RT Anda di browser.
- *   2. Masuk ke halaman "Pengaturan" -> tab "Spreadsheet & API GAS".
- *   3. Klik tombol tombol hijau "Salin Kode" di kanan atas box template.
- *      Ini otomatis menyalin kode MURNI Apps Script ke clipboard Anda tanpa syntax 'export'.
- * 
- * CARA B (Dari file ini):
- *   Salin HANYA isi teks yang berada di dalam tanda backtick (`` ` ``) di bawah ini saja.
- *   Mulai dari baris "/** GOOGLE APPS SCRIPT DATABASE ENDPOINT ..." 
- *   sampai tanda backtick penutup di akhir file saja. Jangan bawa "export const GOOGLE_APPS_SCRIPT_CODE = `".
- * 
- * CARA C (Gunakan File Terpisah):
- *   Gunakan file "AppsScript_Kode_gs.js" yang ada di folder root aplikasi ini.
- *   File tersebut murni berisi kode Google Apps Script tanpa pembungkus React/Vite.
- */
-
-export const GOOGLE_APPS_SCRIPT_CODE = `/**
  * GOOGLE APPS SCRIPT DATABASE ENDPOINT FOR "TABUNGAN WARGA RT"
  * 
  * Instructions:
@@ -122,8 +96,7 @@ function doGet(e) {
         transaksi: getSheetData(ss, "TRANSAKSI"),
         target_kas: getSheetData(ss, "TARGET_KAS"),
         pengumuman: getSheetData(ss, "PENGUMUMAN"),
-        log_aktivitas: getSheetData(ss, "LOG_AKTIVITAS"),
-        kategori: getSheetData(ss, "KATEGORI")
+        log_aktivitas: getSheetData(ss, "LOG_AKTIVITAS")
       };
       return corsResponse({ success: true, data: data });
     }
@@ -263,4 +236,3 @@ function writeSheetData(ss, sheetName, dataList) {
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
   }
 }
-`;

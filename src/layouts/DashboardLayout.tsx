@@ -15,7 +15,8 @@ import {
   CloudOff,
   UserCheck,
   RefreshCw,
-  Clock
+  Clock,
+  Tags
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -50,6 +51,7 @@ export default function DashboardLayout({ activeTab, setActiveTab, children }: D
     { id: 'dashboard', label: 'Dashboard Utama', icon: <LayoutDashboard className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ADMIN', 'WARGA'] },
     { id: 'warga', label: 'Kelola Warga', icon: <Users className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ADMIN'] },
     { id: 'transaksi', label: 'Kas & Transaksi', icon: <Wallet className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { id: 'kategori-transaksi', label: 'Kategori Transaksi', icon: <Tags className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ADMIN'] },
     { id: 'target', label: 'Target Program Kas', icon: <TrendingUp className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ADMIN', 'WARGA'] },
     { id: 'laporan', label: 'Laporan RT', icon: <FileText className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ADMIN'] },
     { id: 'pengaturan', label: 'Sistem & Keamanan', icon: <Settings className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ADMIN'] },

@@ -1,4 +1,4 @@
-import { User, Warga, Transaksi, TargetKas, Pengumuman, LogAktivitas } from '../types';
+import { User, Warga, Transaksi, TargetKas, Pengumuman, LogAktivitas, KategoriTransaksi } from '../types';
 
 const STORAGE_KEYS = {
   GAS_URL: 'tabungan_rt_gas_url',
@@ -8,7 +8,54 @@ const STORAGE_KEYS = {
   TARGET_KAS: 'tabungan_rt_targets',
   PENGUMUMAN: 'tabungan_rt_announcements',
   LOG_AKTIVITAS: 'tabungan_rt_logs',
+  KATEGORI: 'tabungan_rt_categories',
 };
+
+// INITIAL TRANSACTION CATEGORIES
+const INITIAL_KATEGORI: KategoriTransaksi[] = [
+  {
+    id: 'KAT-001',
+    nama: 'Setoran Tabungan Sukarela',
+    tipe: 'Setoran',
+    deskripsi: 'Setoran tabungan sukarela berkala dari warga',
+    created_at: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'KAT-002',
+    nama: 'Penarikan Tabungan Mandiri',
+    tipe: 'Penarikan',
+    deskripsi: 'Penarikan dana tabungan mandiri warga',
+    created_at: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'KAT-003',
+    nama: 'Iuran Kebersihan & Keamanan',
+    tipe: 'Iuran',
+    deskripsi: 'Iuran wajib bulanan kelayakan lingkungan RT',
+    created_at: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'KAT-004',
+    nama: 'Sumbangan Kas Sosial Pos Ronda',
+    tipe: 'Iuran',
+    deskripsi: 'Iuran sukarela pos pelayanan warga',
+    created_at: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'KAT-005',
+    nama: 'Donasi Yatim & Bakti Sosial',
+    tipe: 'Donasi',
+    deskripsi: 'Santunan anak yatim piatu dan bakti sosial',
+    created_at: '2026-01-01T08:00:00Z',
+  },
+  {
+    id: 'KAT-006',
+    nama: 'Santunan Duka Cita Warga',
+    tipe: 'Kas Sosial',
+    deskripsi: 'Sumbangan uang duka cita tertimpa musibah',
+    created_at: '2026-01-01T08:00:00Z',
+  },
+];
 
 // INITIAL BOOTSTRAP DATA INDONESIAN METROPOLIS RT 03/04
 const INITIAL_USERS: User[] = [
@@ -47,6 +94,7 @@ const INITIAL_WARGA: Warga[] = [
     alamat: 'Jl. Anggrek No. 12, RT 03/RW 04',
     no_hp: '081344556677',
     status: 'Aktif',
+    password: 'password123',
     created_at: '2026-01-10T14:20:00Z',
   },
   {
@@ -55,6 +103,7 @@ const INITIAL_WARGA: Warga[] = [
     alamat: 'Jl. Anggrek No. 15, RT 03/RW 04',
     no_hp: '081399887766',
     status: 'Aktif',
+    password: 'password123',
     created_at: '2026-01-12T10:15:00Z',
   },
   {
@@ -63,6 +112,7 @@ const INITIAL_WARGA: Warga[] = [
     alamat: 'Jl. Mawar No. 3A, RT 03/RW 04',
     no_hp: '081288223344',
     status: 'Aktif',
+    password: 'password123',
     created_at: '2026-01-15T11:00:00Z',
   },
   {
@@ -71,6 +121,7 @@ const INITIAL_WARGA: Warga[] = [
     alamat: 'Jl. Anggrek No. 19, RT 03/RW 04',
     no_hp: '081255556666',
     status: 'Aktif',
+    password: 'password123',
     created_at: '2026-01-18T16:45:00Z',
   },
   {
@@ -79,6 +130,7 @@ const INITIAL_WARGA: Warga[] = [
     alamat: 'Jl. Melati No. 42, RT 03/RW 04',
     no_hp: '085600001111',
     status: 'Nonaktif',
+    password: 'password123',
     created_at: '2026-01-20T09:00:00Z',
   }
 ];
@@ -231,6 +283,7 @@ export interface AppState {
   target_kas: TargetKas[];
   pengumuman: Pengumuman[];
   log_aktivitas: LogAktivitas[];
+  kategori: KategoriTransaksi[];
 }
 
 export function getLocalData<T>(key: string, initial: T): T {
@@ -252,10 +305,8 @@ export function saveLocalData<T>(key: string, data: T): void {
 
 // Check if Apps Script is connected
 export function getGasUrl(): string {
-  // Patenkan URL GAS Anda di sini. Jangan lupa tanda kutipnya!
-  return "https://script.google.com/macros/s/AKfycbzC47kzgDbj_Czzf2zeTL0sz-Zn0Ptfpn6mOTcIjeBZeeIzU9SAjB-KkToCOAF23zCr/exec"; 
+  return localStorage.getItem(STORAGE_KEYS.GAS_URL) || '';
 }
-
 
 export function saveGasUrl(url: string): void {
   localStorage.setItem(STORAGE_KEYS.GAS_URL, url);
@@ -265,13 +316,19 @@ export function saveGasUrl(url: string): void {
 export class DatabaseService {
   
   static loadLocalState(): AppState {
+    const rawWarga = getLocalData(STORAGE_KEYS.WARGA, INITIAL_WARGA);
+    const sanitizedWarga = rawWarga.map((w) => ({
+      ...w,
+      password: w.password || 'password123'
+    }));
     return {
       users: getLocalData(STORAGE_KEYS.USERS, INITIAL_USERS),
-      warga: getLocalData(STORAGE_KEYS.WARGA, INITIAL_WARGA),
+      warga: sanitizedWarga,
       transaksi: getLocalData(STORAGE_KEYS.TRANSAKSI, INITIAL_TRANSAKSI),
       target_kas: getLocalData(STORAGE_KEYS.TARGET_KAS, INITIAL_TARGET_KAS),
       pengumuman: getLocalData(STORAGE_KEYS.PENGUMUMAN, INITIAL_PENGUMUMAN),
       log_aktivitas: getLocalData(STORAGE_KEYS.LOG_AKTIVITAS, INITIAL_LOGS),
+      kategori: getLocalData(STORAGE_KEYS.KATEGORI, INITIAL_KATEGORI),
     };
   }
 
@@ -282,6 +339,7 @@ export class DatabaseService {
     saveLocalData(STORAGE_KEYS.TARGET_KAS, state.target_kas);
     saveLocalData(STORAGE_KEYS.PENGUMUMAN, state.pengumuman);
     saveLocalData(STORAGE_KEYS.LOG_AKTIVITAS, state.log_aktivitas);
+    saveLocalData(STORAGE_KEYS.KATEGORI, state.kategori);
   }
 
   static async fetchFromGas(url: string): Promise<AppState | null> {
@@ -361,6 +419,7 @@ export class DatabaseService {
     localStorage.removeItem(STORAGE_KEYS.TARGET_KAS);
     localStorage.removeItem(STORAGE_KEYS.PENGUMUMAN);
     localStorage.removeItem(STORAGE_KEYS.LOG_AKTIVITAS);
+    localStorage.removeItem(STORAGE_KEYS.KATEGORI);
     
     const defaultState: AppState = {
       users: INITIAL_USERS,
@@ -368,7 +427,8 @@ export class DatabaseService {
       transaksi: INITIAL_TRANSAKSI,
       target_kas: INITIAL_TARGET_KAS,
       pengumuman: INITIAL_PENGUMUMAN,
-      log_aktivitas: INITIAL_LOGS
+      log_aktivitas: INITIAL_LOGS,
+      kategori: INITIAL_KATEGORI
     };
     
     this.saveLocalState(defaultState);

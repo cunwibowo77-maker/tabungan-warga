@@ -16,6 +16,7 @@ export interface Warga {
   alamat: string;
   no_hp: string;
   status: 'Aktif' | 'Nonaktif';
+  password?: string;
   created_at: string;
 }
 
@@ -24,9 +25,18 @@ export interface Transaksi {
   tanggal: string;
   warga_id: string;
   tipe: 'Setoran' | 'Penarikan' | 'Iuran' | 'Donasi' | 'Kas Sosial';
+  kategori_id?: string; // Reference to dynamic category
   jumlah: number;
   keterangan: string;
   admin_input: string; // username of admin
+}
+
+export interface KategoriTransaksi {
+  id: string;
+  nama: string;
+  tipe: 'Setoran' | 'Penarikan' | 'Iuran' | 'Donasi' | 'Kas Sosial';
+  deskripsi?: string;
+  created_at: string;
 }
 
 export interface TargetKas {

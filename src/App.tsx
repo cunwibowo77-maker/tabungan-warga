@@ -14,6 +14,7 @@ import Transactions from './pages/Transactions';
 import TargetKasPage from './pages/TargetKas';
 import Reports from './pages/Reports';
 import SystemSettings from './pages/SystemSettings';
+import KategoriTransactionsPage from './pages/KategoriTransactions';
 
 function InnerApp() {
   const { user } = useApp();
@@ -34,6 +35,7 @@ function InnerApp() {
       {activeTab === 'warga' && <WargaList />}
       {activeTab === 'transaksi' && <Transactions />}
       {activeTab === 'target' && <TargetKasPage />}
+      {activeTab === 'kategori-transaksi' && <KategoriTransactionsPage />}
       {activeTab === 'laporan' && <Reports />}
       {activeTab === 'pengaturan' && <SystemSettings />}
       <Toast />

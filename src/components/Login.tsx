@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { LogIn, KeyRound, Phone, Users, ShieldAlert, BookOpen, ExternalLink, HelpCircle } from 'lucide-react';
+import { motion } from 'motion/react';
 
 export default function Login() {
   const { login, loading } = useApp();
@@ -12,7 +13,7 @@ export default function Login() {
   
   // Warga credentials
   const [nikOrPhone, setNikOrPhone] = useState('');
-  const [wargaPassword, setWargaPassword] = useState(''); // <-- Tambahan State Baru
+  const [wargaPassword, setWargaPassword] = useState('');
 
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -32,30 +33,30 @@ export default function Login() {
   const handleSubmitWarga = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!nikOrPhone.trim() || !wargaPassword.trim()) { // <-- Validasi Password Warga
-      setFormError('Lengkapi NIK/No HP dan Password Anda.');
+    if (!nikOrPhone.trim() || !wargaPassword.trim()) {
+      setFormError('Lengkapi NIK/Nomor HP dan Kata Sandi Anda.');
       return;
     }
-    // Kirim nikOrPhone sebagai username, dan wargaPassword sebagai password
-    const success = await login(nikOrPhone, wargaPassword); 
+    const success = await login(nikOrPhone, wargaPassword.trim());
     if (!success) {
-      setFormError('NIK/No HP atau Password salah.');
+      setFormError('NIK/Nomor HP atau password warga salah, atau akun nonaktif.');
     }
   };
 
+  // Quick action fill buttons to help evaluation
   const handleQuickFill = (role: 'super' | 'admin' | 'warga') => {
     if (role === 'super') {
       setTab('staff');
       setUsername('superadmin');
-      setPassword('12345'); // Disesuaikan dengan database GAS kita
+      setPassword('password123');
     } else if (role === 'admin') {
       setTab('staff');
       setUsername('admin');
-      setPassword('admin123'); // Disesuaikan dengan database GAS kita
+      setPassword('password123');
     } else {
       setTab('warga');
-      setNikOrPhone('warga'); // Username warga dari GAS
-      setWargaPassword('warga123'); // Password warga dari GAS
+      setNikOrPhone('3374110502880001');
+      setWargaPassword('password123');
     }
   };
 
@@ -89,7 +90,9 @@ export default function Login() {
             <button
               onClick={() => { setTab('staff'); setFormError(null); }}
               className={`flex-1 py-3 text-center rounded-2xl text-xs font-bold transition duration-200 flex items-center justify-center gap-2 cursor-pointer ${
-                tab === 'staff' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                tab === 'staff'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <ShieldAlert className="h-4 w-4" /> Pengurus RT (Staff)
@@ -97,7 +100,9 @@ export default function Login() {
             <button
               onClick={() => { setTab('warga'); setFormError(null); }}
               className={`flex-1 py-3 text-center rounded-2xl text-xs font-bold transition duration-200 flex items-center justify-center gap-2 cursor-pointer ${
-                tab === 'warga' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                tab === 'warga'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Users className="h-4 w-4" /> Warga RT
@@ -146,7 +151,11 @@ export default function Login() {
                   </div>
                 </div>
 
-                <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/10 hover:shadow-emerald-700/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/10 hover:shadow-emerald-700/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                >
                   {loading ? 'Memproses...' : 'Ases Masuk Admin'}
                 </button>
               </form>
@@ -154,31 +163,30 @@ export default function Login() {
               <form onSubmit={handleSubmitWarga} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 font-mono">
-                    Username / NIK / No HP
+                    NIK / Nomor Handphone
                   </label>
                   <div className="relative">
                     <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                     <input
                       type="text"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-200"
-                      placeholder="Masukkan Username / NIK"
+                      placeholder="NIK (3374...) atau No Hp (0813...)"
                       value={nikOrPhone}
                       onChange={(e) => setNikOrPhone(e.target.value)}
                     />
                   </div>
                 </div>
 
-                {/* --- TAMBAHAN KOLOM PASSWORD UNTUK WARGA --- */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 font-mono">
-                    Password
+                    Kata Sandi (Password)
                   </label>
                   <div className="relative">
-                    <LogIn className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                    <KeyRound className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                     <input
                       type="password"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition duration-200"
-                      placeholder="Masukkan password Anda"
+                      placeholder="Kata sandi warga"
                       value={wargaPassword}
                       onChange={(e) => setWargaPassword(e.target.value)}
                     />
@@ -186,11 +194,15 @@ export default function Login() {
                 </div>
 
                 <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 text-[11px] text-emerald-800 leading-relaxed">
-                  <p className="font-semibold">Keamanan Data Warga:</p>
-                  <p className="mt-0.5">Silakan masuk menggunakan Username dan Password yang telah diberikan oleh pengurus RT.</p>
+                  <p className="font-semibold">Bantuan Masuk Warga:</p>
+                  <p className="mt-0.5">Warga RT 03 aktif dapat masuk menggunakan **NIK/Nomor HP** dan **Kata Sandi**. Kata sandi bawaan (default) adalah **Nomor HP** terdaftar.</p>
                 </div>
 
-                <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/10 hover:shadow-emerald-700/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/10 hover:shadow-emerald-700/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                >
                   {loading ? 'Memproses...' : 'Masuk Kartu Tabungan'}
                 </button>
               </form>
@@ -203,13 +215,22 @@ export default function Login() {
                 <span className="text-[10px] font-bold text-slate-500 font-mono tracking-wider uppercase">DEMO LOGIN INSTAN (KLIK):</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5">
-                <button onClick={() => handleQuickFill('super')} className="py-1 px-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#b45309] text-[9.5px] font-semibold rounded-lg cursor-pointer transition text-center">
+                <button
+                  onClick={() => handleQuickFill('super')}
+                  className="py-1 px-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#b45309] text-[9.5px] font-semibold rounded-lg cursor-pointer transition text-center"
+                >
                   Super Admin
                 </button>
-                <button onClick={() => handleQuickFill('admin')} className="py-1 px-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-[9.5px] font-semibold rounded-lg cursor-pointer transition text-center">
+                <button
+                  onClick={() => handleQuickFill('admin')}
+                  className="py-1 px-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-[9.5px] font-semibold rounded-lg cursor-pointer transition text-center"
+                >
                   Admin RT
                 </button>
-                <button onClick={() => handleQuickFill('warga')} className="py-1 px-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[9.5px] font-semibold rounded-lg cursor-pointer transition text-center">
+                <button
+                  onClick={() => handleQuickFill('warga')}
+                  className="py-1 px-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[9.5px] font-semibold rounded-lg cursor-pointer transition text-center"
+                >
                   Warga Biasa
                 </button>
               </div>
@@ -219,6 +240,7 @@ export default function Login() {
         </div>
       </div>
 
+      {/* Brand footer */}
       <div className="text-center z-10 py-4 border-t border-slate-200/40 text-[10px] text-slate-400 font-mono tracking-widest uppercase">
         Pengembangan Aplikasi Kas Premium &copy; 2026
       </div>

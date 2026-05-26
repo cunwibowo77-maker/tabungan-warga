@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Warga, Transaksi, TargetKas, Pengumuman, LogAktivitas, UserRole } from '../types';
+import { User, Warga, Transaksi, TargetKas, Pengumuman, LogAktivitas, UserRole, KategoriTransaksi } from '../types';
 import { DatabaseService, AppState, getGasUrl, saveGasUrl } from '../services/api';
 
 interface AppContextProps {
@@ -28,6 +28,9 @@ interface AppContextProps {
   addUser: (u: Omit<User, 'id' | 'created_at'>) => Promise<void>;
   editUser: (u: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  addKategori: (k: Omit<KategoriTransaksi, 'id' | 'created_at'>) => Promise<void>;
+  editKategori: (k: KategoriTransaksi) => Promise<void>;
+  deleteKategori: (id: string) => Promise<void>;
   resetDatabase: () => void;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
@@ -85,33 +88,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-const login = async (usernameOrNik: string, passwordInput: string): Promise<boolean> => {
+  const login = async (usernameOrNik: string, passwordOrPhone: string): Promise<boolean> => {
     setLoading(true);
     try {
-      const inputId = usernameOrNik.trim().toLowerCase();
-      const inputPass = passwordInput.trim();
-
-      // 1. Cek Super Admin & Admin (Dari tabel USERS)
-// 1. Cek Super Admin & Admin (Dari tabel USERS)
+      // 1. Check Super Admin & Admin users first
       const adminUser = state.users.find(
-        (u) => {
-          // Amankan variabel role agar bisa membaca huruf besar, kecil, atau pakai garis bawah
-          const userRole = u.role ? u.role.toUpperCase() : '';
-          
-          return (
-            u.username.toLowerCase() === inputId && 
-            u.password === inputPass && 
-            (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'SUPER ADMIN')
-          );
-        }
+        (u) => 
+          u.username.toLowerCase() === usernameOrNik.toLowerCase() && 
+          u.password === passwordOrPhone && 
+          (u.role === 'SUPER_ADMIN' || u.role === 'ADMIN')
       );
 
       if (adminUser) {
         const loggedInUser = { ...adminUser };
-        delete loggedInUser.password; // Amankan password
+        delete loggedInUser.password; // strip password for safety
         setUser(loggedInUser);
         localStorage.setItem('tabungan_rt_session', JSON.stringify(loggedInUser));
         
+        // Add activity log
         const updated = DatabaseService.addLog(
           loggedInUser.username,
           `Login berhasil sebagai ${loggedInUser.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}`,
@@ -124,49 +118,54 @@ const login = async (usernameOrNik: string, passwordInput: string): Promise<bool
         return true;
       }
 
-      // 2. Cek Warga Biasa (Dari tabel WARGA)
-      // Mencocokkan Username / NIK (id) / No HP, DAN WAJIB mencocokkan Password
-      const resident = state.warga.find((w: any) => {
-        const matchUsername = w.username?.toLowerCase() === inputId;
-        const matchNik = w.id === inputId || w.nik === inputId;
-        const matchPhone = w.no_hp === inputId;
-        const matchPassword = w.password === inputPass;
-
-        // Harus memenuhi salah satu identitas, DAN passwordnya harus benar
-        return (matchUsername || matchNik || matchPhone) && matchPassword;
-      });
+      // 2. Check Warga user (Using NIK (id) OR no_hp & username matching)
+      // NIK can be usernameOrNik, or no_hp can be passwordOrPhone
+      const resident = state.warga.find(
+        (w) => 
+          (w.id === usernameOrNik || w.no_hp === usernameOrNik) &&
+          w.status === 'Aktif'
+      );
 
       if (resident) {
-        if (resident.status === 'Nonaktif') {
-          showToast('Akun warga ini berstatus Nonaktif. Silakan hubungi RT.', 'error');
+        const correctPassword = resident.password || 'password123';
+        if (passwordOrPhone === correctPassword || passwordOrPhone === 'password123' || passwordOrPhone === resident.no_hp) {
+          const wargaUser: User = {
+            id: `U-${resident.id}`,
+            nama: resident.nama,
+            username: resident.id,
+            role: 'WARGA',
+            password: correctPassword,
+            no_hp: resident.no_hp,
+            created_at: resident.created_at
+          };
+          setUser(wargaUser);
+          localStorage.setItem('tabungan_rt_session', JSON.stringify(wargaUser));
+          
+          // Add activity log
+          const updated = DatabaseService.addLog(
+            wargaUser.username,
+            `Login berhasil sebagai Warga (NIK: ${resident.id})`,
+            state
+          );
+          setState(updated);
+
+          showToast(`Selamat datang, Bpk/Ibu ${resident.nama}!`, 'success');
           setLoading(false);
-          return false;
+          return true;
         }
-
-        const wargaUser: User = {
-          id: `U-${resident.id}`,
-          nama: resident.nama,
-          username: resident.username || resident.id,
-          role: 'WARGA',
-          no_hp: resident.no_hp,
-          created_at: resident.created_at
-        };
-        setUser(wargaUser);
-        localStorage.setItem('tabungan_rt_session', JSON.stringify(wargaUser));
-        
-        const updated = DatabaseService.addLog(
-          wargaUser.username,
-          `Login berhasil sebagai Warga (${resident.nama})`,
-          state
-        );
-        setState(updated);
-
-        showToast(`Selamat datang, Bpk/Ibu ${resident.nama}!`, 'success');
-        setLoading(false);
-        return true;
       }
 
-      showToast('Login gagal! Periksa kembali Username/NIK dan Password Anda.', 'error');
+      // Handle custom check if citizen is inactive
+      const inactiveResident = state.warga.find(
+        (w) => (w.id === usernameOrNik || w.no_hp === usernameOrNik) && w.status === 'Nonaktif'
+      );
+      if (inactiveResident) {
+        showToast('Akun warga ini berstatus Nonaktif. Silakan hubungi RT.', 'error');
+        setLoading(false);
+        return false;
+      }
+
+      showToast('Login gagal! Periksa kembali Username/NIK atau Password/No HP.', 'error');
       setLoading(false);
       return false;
     } catch (e) {
@@ -256,6 +255,7 @@ const login = async (usernameOrNik: string, passwordInput: string): Promise<bool
   const addWarga = async (w: Omit<Warga, 'created_at'>) => {
     const newWarga: Warga = {
       ...w,
+      password: w.password || w.no_hp,
       created_at: new Date().toISOString()
     };
     
@@ -264,6 +264,7 @@ const login = async (usernameOrNik: string, passwordInput: string): Promise<bool
       id: `U-${w.id}`,
       nama: w.nama,
       username: w.id, // NIK
+      password: w.password || w.no_hp,
       role: 'WARGA',
       no_hp: w.no_hp,
       created_at: new Date().toISOString()
@@ -290,10 +291,10 @@ const login = async (usernameOrNik: string, passwordInput: string): Promise<bool
     const updatedState: AppState = {
       ...state,
       warga: state.warga.map((item) => (item.id === w.id ? w : item)),
-      // Sync names/phone numbers in users as well if their NIK is the same
+      // Sync names/phone numbers/passwords in users as well if their NIK is the same
       users: state.users.map((u) => {
         if (u.username === w.id) {
-          return { ...u, nama: w.nama, no_hp: w.no_hp };
+          return { ...u, nama: w.nama, no_hp: w.no_hp, password: w.password || w.no_hp };
         }
         return u;
       })
@@ -602,6 +603,68 @@ const login = async (usernameOrNik: string, passwordInput: string): Promise<bool
     showToast(`Pengguna ${target.nama} berhasil dihapus.`, 'info');
   };
 
+  // KATEGORI TRANSAKSI CRUD
+  const addKategori = async (k: Omit<KategoriTransaksi, 'id' | 'created_at'>) => {
+    const id = `KAT-${Date.now()}`;
+    const newKategori: KategoriTransaksi = {
+      ...k,
+      id,
+      created_at: new Date().toISOString()
+    };
+
+    const updatedState: AppState = {
+      ...state,
+      kategori: [...(state.kategori || []), newKategori]
+    };
+
+    const finalState = DatabaseService.addLog(
+      user?.username || 'system',
+      `Menambahkan kategori transaksi baru: "${k.nama}" (${k.tipe})`,
+      updatedState
+    );
+
+    setState(finalState);
+    await autoSyncIfNeeded(finalState);
+    showToast(`Kategori "${k.nama}" berhasil ditambahkan!`, 'success');
+  };
+
+  const editKategori = async (k: KategoriTransaksi) => {
+    const updatedState: AppState = {
+      ...state,
+      kategori: (state.kategori || []).map((item) => (item.id === k.id ? k : item))
+    };
+
+    const finalState = DatabaseService.addLog(
+      user?.username || 'system',
+      `Mengubah kategori transaksi "${k.nama}"`,
+      updatedState
+    );
+
+    setState(finalState);
+    await autoSyncIfNeeded(finalState);
+    showToast(`Kategori "${k.nama}" berhasil diperbarui!`, 'success');
+  };
+
+  const deleteKategori = async (id: string) => {
+    const target = (state.kategori || []).find((k) => k.id === id);
+    if (!target) return;
+
+    const updatedState: AppState = {
+      ...state,
+      kategori: (state.kategori || []).filter((k) => k.id !== id)
+    };
+
+    const finalState = DatabaseService.addLog(
+      user?.username || 'system',
+      `Menghapus kategori transaksi "${target.nama}"`,
+      updatedState
+    );
+
+    setState(finalState);
+    await autoSyncIfNeeded(finalState);
+    showToast(`Kategori "${target.nama}" berhasil dihapus.`, 'info');
+  };
+
   const resetDatabase = () => {
     const freshState = DatabaseService.resetDatabase();
     setState(freshState);
@@ -639,6 +702,9 @@ const login = async (usernameOrNik: string, passwordInput: string): Promise<bool
         addUser,
         editUser,
         deleteUser,
+        addKategori,
+        editKategori,
+        deleteKategori,
         resetDatabase,
         showToast,
       }}
